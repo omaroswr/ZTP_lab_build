@@ -23,7 +23,7 @@ spec:
       metadata:
         name: redhat-operator-index
       spec:
-        image: infra.5g-deployment.lab:8443/redhat/redhat-operator-index:v4.14-1700503430
+        image: infra.5g-deployment.lab:8443/redhat/redhat-operator-index:v4.15-1711601986
       policyName: config-policies
     - fileName: ReduceMonitoringFootprint.yaml
       policyName: config-policies
@@ -37,7 +37,7 @@ spec:
     - fileName: StorageLVMOSubscription.yaml
       spec:
         name: lvms-operator
-        channel: stable-4.14
+        channel: stable-4.15
         source: redhat-operator-index
       policyName: subscription-policies
 EOF
@@ -77,7 +77,7 @@ kind: ClusterImageSet
 metadata:
   name: active-ocp-version
 spec:
-  releaseImage: infra.5g-deployment.lab:8443/openshift/release-images:4.14.0-x86_64
+  releaseImage: infra.5g-deployment.lab:8443/openshift/release-images:4.15.0-x86_64
 EOF
 ```
 
