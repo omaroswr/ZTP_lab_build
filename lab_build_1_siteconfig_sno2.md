@@ -144,7 +144,7 @@ spec:
     # extraManifestPath: sno2-extra-manifest
     # Cluster labels (this will be used by RHACM)
     clusterLabels:
-      common: "ocp414"
+      common: "ocp415"
       logicalGroup: "active"
       group-du-sno: ""
       du-site: "sno2"
