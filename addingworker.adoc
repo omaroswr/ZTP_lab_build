@@ -1,0 +1,565 @@
+:toc:
+
+# Adding a worker node (IPI Method): 
+
+## Step1: Apply the manifests for the needed CRs for worker node: 
+
+Apply the following to create: 
+1. worker nodes networking configuration defined as a `secret`
+2. BMC credentials for the node defined as a `secret`
+3. A `baremetalhost` CR, that leverages the above two
+
+```
+---
+apiVersion: v1 
+kind: Secret
+metadata:
+ name: openshift-worker-1-network-config-secret 
+ namespace: openshift-machine-api
+type: Opaque
+stringData:
+ nmstate: |  
+  interfaces: 
+  - name: bond0
+    type: bond 
+    state: up
+    mtu: 8950
+    link-aggregation:
+      mode: '802.3ad'
+      options:
+        miimon: "1500"
+      port:
+      - eno12399
+      - eno12409
+    ipv4:
+      address:
+      - ip: 172.31.41.9
+        prefix-length: 24
+      enabled: true
+      dhcp: false
+    ipv6:
+      address:
+      - ip: fd00:2023:41::9
+        prefix-length: 48
+      enabled: true
+      dhcp: false
+  - name: bond1
+    type: bond 
+    state: up
+    mtu: 8950
+    link-aggregation:
+      mode: '802.3ad'
+      options:
+        miimon: "1500"
+      port:
+      - eno12419
+      - eno12429
+  - name: eno12399
+    type: ethernet
+    state: down
+    mac-address: 30:3E:A7:03:0F:10
+  - name: eno12409
+    type: ethernet
+    state: down
+    mac-address: 30:3E:A7:03:0F:11
+  - name: eno12419
+    type: ethernet
+    state: down
+    mac-address: 30:3E:A7:03:0F:12
+  - name: eno12429
+    type: ethernet
+    state: down
+    mac-address: 30:3E:A7:03:0F:13
+  dns-resolver:
+    config:
+      server:
+        - 192.168.22.4
+  routes:
+    config:
+      - destination: 0.0.0.0/0
+        next-hop-address: 172.31.41.1
+        next-hop-interface: bond0
+        table-id: 254
+      - destination: ::/0
+        next-hop-address: fd00:2023:41::1
+        next-hop-interface: bond0
+        table-id: 254
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: openshift-worker-1-bmc-secret 
+  namespace: openshift-machine-api
+type: Opaque
+data:
+  username: cm9vdA== 
+  password: Y2Fsdmlu
+---
+apiVersion: metal3.io/v1alpha1
+kind: BareMetalHost
+metadata:
+  name: openshift-worker-1 
+  namespace: openshift-machine-api
+spec:
+  online: True
+  bootMACAddress: 30:3E:A7:03:0F:10
+  bmc:
+    address: idrac-virtualmedia://192.168.22.153/redfish/v1/Systems/System.Embedded.1
+    credentialsName: openshift-worker-1-bmc-secret 
+    disableCertificateVerification: True 
+  preprovisioningNetworkDataName: openshift-worker-1-network-config-secret 
+```
+
+The newly added BMH CR should show up in the list: 
+```
+oc get bmh -A
+NAMESPACE               NAME                 STATE       CONSUMER                  ONLINE   ERROR   AGE
+openshift-machine-api   openshift-worker-1   available                             true             2d21h
+openshift-machine-api   super1               unmanaged   mgmt-ebc-gdvr9-master-0   true             2d23h
+openshift-machine-api   super2               unmanaged   mgmt-ebc-gdvr9-master-1   true             2d23h
+openshift-machine-api   super3               unmanaged   mgmt-ebc-gdvr9-master-2   true             2d23h
+```
+
+
+## Step2: Create DNS Entry for the node: 
+
+Unless the DNS entry exists, new node provisiioning will not work. An example of the DNS entry is provided here: 
+
+```
+more /etc/NetworkManager/dnsmasq.d/mgmt1-worker.conf
+
+address=/openshift-worker-1.npss.bos2.lab/172.31.41.9
+dhcp-host=30:3e:a7:03:0f:10,openshift-worker-1,172.31.41.9
+host-record=openshift-worker-1.npss.bos2.lab,172.31.41.9
+
+```
+
+[NOTE]
+======
+ Ensure to restart NetworkManager or dnsmasq etc. after making DNS record changes
+======
+
+## Step3: Scale up the machineset: 
+
+Check the status of machinetset: 
+
+```
+oc get machinesets -n openshift-machine-api
+NAME                      DESIRED   CURRENT   READY   AVAILABLE   AGE
+mgmt-ebc-gdvr9-worker-0   0         0                             2d23h
+```
+Now scale up the machine set count by 1: 
+
+```
+oc scale --replicas=1 machinesets mgmt-ebc-gdvr9-worker-0 -n openshift-machine-api
+```
+
+The change will cause the BMH to enter `provisioning` state as shown here: 
+
+```
+oc get bmh -A
+NAMESPACE               NAME                 STATE          CONSUMER                        ONLINE   ERROR   AGE
+openshift-machine-api   openshift-worker-1   provisioning   mgmt-ebc-gdvr9-worker-0-cmgrc   true             2d21h
+openshift-machine-api   super1               unmanaged      mgmt-ebc-gdvr9-master-0         true             2d23h
+openshift-machine-api   super2               unmanaged      mgmt-ebc-gdvr9-master-1         true             2d23h
+openshift-machine-api   super3               unmanaged      mgmt-ebc-gdvr9-master-2         true             2d23h
+```
+
+The `machine` CR will also show the new machine being added: 
+
+```
+oc get machines -n openshift-machine-api  
+NAME                         PHASE          TYPE   REGION   ZONE   AGE
+mgmt1-pqdng-master-0         Running                               44d
+mgmt1-pqdng-master-1         Running                               44d
+mgmt1-pqdng-master-2         Running                               44d
+mgmt1-pqdng-worker-0-q4trp   Provisioning                          86s
+```
+
+The BMH CR will transition state from `registering` --> `inspecting` --> `provisioning` --> `provisioned` 
+
+[NOTE] 
+======
+Took around 16 minutes to reach provisioned state
+======
+
+```
+oc get bmh -n openshift-machine-api   openshift-worker-1 
+NAME                 STATE         CONSUMER                        ONLINE   ERROR   AGE
+openshift-worker-1   provisioned   mgmt-ebc-gdvr9-worker-0-cmgrc   true             2d21h  
+```
+
+## Step4: Approve the CSR:
+
+After the node has reached `provisioned` state, the new CSR will show up as shown below: 
+
+[NOTE] 
+======
+At different attemtpts, it took from 4 to 10 minutes for the CSR to appear *after* the node had reached `provisioned` state
+======
+
+```
+oc get csr 
+NAME        AGE    SIGNERNAME                                    REQUESTOR                                                                   REQUESTEDDURATION   CONDITION
+csr-zbgzz   2m9s   kubernetes.io/kube-apiserver-client-kubelet   system:serviceaccount:openshift-machine-config-operator:node-bootstrapper   <none>              Pending
+```
+
+Approve the CSR using: 
+```
+oc get csr -o go-template='{{range .items}}{{if not .status}}{{.metadata.name}}{{"\n"}}{{end}}{{end}}' | xargs --no-run-if-empty oc adm certificate approve
+```
+
+Approximately 2-3 minutes after that, the new worker node will appear in the nodes list as shown here: 
+```
+oc get nodes | grep worker-1
+openshift-worker-1.npss.bos2.lab   NotReady   worker                        50s   v1.25.12+26bab08
+```
+
+The machine config pool may take a little while to update: 
+
+```
+oc get mcp
+NAME     CONFIG                                             UPDATED   UPDATING   DEGRADED   MACHINECOUNT   READYMACHINECOUNT   UPDATEDMACHINECOUNT   DEGRADEDMACHINECOUNT   AGE
+master   rendered-master-f03c166c0a0d14fbb7718ff3b9acb2d3   True      False      False      3              3                   3                     0                      45d
+worker   rendered-worker-59b38da968d8113bac006415332d3cfc   False     True       False      1              0                   1                     
+```
+
+# Removing a worker node: 
+
+## Step1: Scale down the machineset:
+
+The following command can be used for this purpose: 
+```
+oc scale --replicas=0 machineset mgmt1-pqdng-worker-0 -n openshift-machine-api
+```
+
+Note that the machine that gets removed randomly by default. However, a policy can be set to select the "last added" or "oldest" machine to be deleted instead. Refer to [documenaation](https://docs.openshift.com/container-platform/4.14/post_installation_configuration/cluster-tasks.html#machineset-delete-policy_post-install-cluster-tasks) for furhter details. Additionally, one option is to use anontation to identify the machine that will need to get deleted: 
+```
+oc annotate machine/<machine_name> -n openshift-machine-api machine.openshift.io/delete-machine="true"
+```
+
+For more details, check documentation link
+
+This will result in the BMH and `machine` CR to get deleted after a few minutes: 
+```
+oc get bmh -A | grep worker
+openshift-machine-api   openshift-worker-1                provisioned   mgmt1-pqdng-worker-0-tcrx6   false            3d22h
+
+oc get machine -A | grep worker
+openshift-machine-api   mgmt1-pqdng-worker-0-tcrx6   Deleting                          3d22h
+```
+During this time, the worker node will get automatically drained and also cardoned off: 
+
+[NOTE] 
+======
+Automatic draining can be disabled by annotating `machine.openshift.io/exclude-node-draining` in a specific machine
+======
+
+```
+oc get nodes | grep worker 
+openshift-worker-1.npss.bos2.lab   Ready,SchedulingDisabled   worker                        3d22h   v1.25.12+26bab08
+```
+The following logs show that the `drain` operation was automatically performed: 
+```
+oc describe machine -n openshift-machine-api   mgmt1-pqdng-worker-0-tcrx6 | more
+Events:
+  Type    Reason          Age                    From                      Message
+  ----    ------          ----                   ----                      -------
+  Normal  DrainProceeds   7m42s (x2 over 7m48s)  machine-drain-controller  Node drain proceeds
+  Normal  Deleted         7m42s (x2 over 7m42s)  machine-drain-controller  Node "openshift-worker-1.npss.bos2.lab" drained
+  Normal  DrainSucceeded  7m42s (x2 over 7m42s)  machine-drain-controller  Node drain succeeded
+```
+
+After about 20 minutes, the `node` and `machine` CR will be removed: 
+```
+oc get node,machine -A | grep worker | grep -v ",worker"
+<nothing>
+```
+
+At this point, the `bmh` CR continues to stay, and can be deleted if desired: 
+```
+oc get bmh -A | grep worker
+openshift-machine-api   openshift-worker-1                available                             false            3d23h
+```
+
+To delete: 
+```
+oc delete -f worker.yaml 
+secret "openshift-worker-1-network-config-secret" deleted
+secret "openshift-worker-1-bmc-secret" deleted
+baremetalhost.metal3.io "openshift-worker-1" deleted
+```
+
+# Adding worker node using ACM: 
+
+## Step1: Download Installer and define the variables: 
+
+First download the openshift-install binary using:
+
+[NOTE] 
+======
+You can use `oc get clusterversions.config.openshift.io` to find the cluster's version and define the OCP_VERSION variable accordingly
+======
+
+```
+export OCP_VERSION=4.12.34
+curl -k https://mirror.openshift.com/pub/openshift-v4/clients/ocp/$OCP_VERSION/openshift-install-linux.tar.gz > openshift-install-linux.tar.gz
+tar zxvf openshift-install-linux.tar.gz
+chmod +x openshift-install
+```
+
+Then define the following variables: 
+```
+export ARCH=x86_64
+ISO_URL=$(./openshift-install coreos print-stream-json | grep location | grep $ARCH | grep iso | cut -d\" -f4)
+```
+This will provide the ISO_URL for the specified version (note that the version of openshift-install can be different than OCP_VERSION speficied here)
+
+## Step2: Download the rhcos iso:
+
+Use the following: 
+```
+curl -L $ISO_URL -o rhcos-live.iso
+```
+
+## Step3: Create the ignition file:
+
+Use the following to create worker's ignition file using infromation from the current cluster: 
+
+```
+oc extract -n openshift-machine-api secret/worker-user-data-managed --keys=userData --to=- > worker.ign
+```
+
+## Step4: Add a DNS record:
+
+Add a DNS record for the worker node being added. For example: 
+```
+host-record=openshift-worker-1.npss.bos2.lab,172.31.41.9
+```
+
+## Step5: Create namespace & secret: 
+```
+oc new-project hub
+oc extract secrets/pull-secret -n openshift-config --confirm
+oc create secret -n hub docker-registry pull-secret --from-file .dockerconfigjson
+```
+
+## Step6: Define the needed CRs: 
+
+### Define NMState:
+
+Define Networking for the new worker: 
+
+Use the following to define the new worker's networking: 
+
+```
+cat << EOF | oc apply -f -
+kind: NMStateConfig
+metadata:
+  name: mynmstateconfig
+  namespace: hub
+  labels:
+    demo-nmstate-label: value 
+spec:
+  config:
+    interfaces: 
+    - name: bond0
+      type: bond 
+      state: up
+      mtu: 8950
+      link-aggregation:
+        mode: '802.3ad'
+        options:
+          miimon: "1500"
+        port:
+        - eno12399
+        - eno12409
+      ipv4:
+        address:
+        - ip: 172.31.41.9
+          prefix-length: 24
+        enabled: true
+        dhcp: false
+      ipv6:
+        address:
+        - ip: fd00:2023:41::9
+          prefix-length: 48
+        enabled: true
+        dhcp: false
+    - name: bond1
+      type: bond 
+      state: up
+      mtu: 8950
+      link-aggregation:
+        mode: '802.3ad'
+        options:
+          miimon: "1500"
+        port:
+        - eno12419
+        - eno12429
+    - name: eno12399
+      type: ethernet
+      state: down
+      mac-address: 30:3E:A7:03:0F:10
+    - name: eno12409
+      type: ethernet
+      state: down
+      mac-address: 30:3E:A7:03:0F:11
+    - name: eno12419
+      type: ethernet
+      state: down
+      mac-address: 30:3E:A7:03:0F:12
+    - name: eno12429
+      type: ethernet
+      state: down
+      mac-address: 30:3E:A7:03:0F:13
+    dns-resolver:
+      config:
+        server:
+          - 192.168.22.4
+    routes:
+      config:
+        - destination: 0.0.0.0/0
+          next-hop-address: 172.31.41.1
+          next-hop-interface: bond0
+          table-id: 254
+        - destination: ::/0
+          next-hop-address: fd00:2023:41::1
+          next-hop-interface: bond0
+          table-id: 254
+EOF
+```
+
+
+### Define InfraEnv: 
+
+Use the following to add a manifest for infraEnv CR: 
+
+[NOTE]
+======
+Update the ssh key and other values according to your environment
+======
+
+```
+cat << EOF | oc apply -f -
+apiVersion: agent-install.openshift.io/v1beta1
+kind: InfraEnv
+metadata:
+  name: some-other-infraenv
+  namespace: hub
+spec:
+  clusterRef:
+    name: mgmt1
+    namespace: hub
+  pullSecretRef:
+    name: pull-secret
+    sshAuthorizedKey: | 
+      ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDZfKZUTb8llqiHly/vx4sUDzadmiR3WxYMZQCzzQFrO1X2TEZOfWsHi3J6B6uVdU7zH9RRbKbZecxtBft0QT9bTR2lUKPgbbCgiiD7AXw6AfRyrm/pSWPA06EfLm83kBFrf/BW4ORF1M3Vr+1R8+APDcgH1nou0xV0QeTWWMIJqKNuyNS6zDMdafAm6cf786mTwwlosegI6J5aGZewirDNa+BbIqudFzSvu7rU4SF+Ls2MlqadR3p21qhXAoN7n8EySibBQGPAnMu3wC4sun0blyUVxgKe3AotR+MkdWj2wra6kcU71/YOWHdWRbcf2YUlLWwKz9xHoZAURp8fTsOZZ1czDvbp0xxUyG8uvSVw9D/df/lBUeACZ648Z9TIqPhDGqltD1aOWEqHNqzhSHwOTuYTtwmbTJHYr8LH0Cgr9+IhqnR2RZsZfWCRB4QZIk591IRa31RRH5ES5BVTzJCNN14qipaHadCeIAMsJIcHo8IZbMe/AnNkVLonijs4r2U= mano1@bastion
+  nmStateConfigLabelSelector:
+    matchLabels:
+      demo-nmstate-label: value
+EOF
+```
+
+### Define AgentClusterInstall and ClusterDeployment: 
+
+```
+cat << EOF | oc apply -f - 
+apiVersion: extensions.hive.openshift.io/v1beta1
+kind: AgentClusterInstall
+metadata:
+  name: mgmt1
+  namespace: hub
+spec:
+  networking:
+    userManagedNetworking: true
+  clusterDeploymentRef:
+    name: mgmt1
+  imageSetRef:
+    name: img4.12.34-x86-64-appsub
+  provisionRequirements:
+    controlPlaneAgents: 1
+  sshPublicKey: |
+    ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDZfKZUTb8llqiHly/vx4sUDzadmiR3WxYMZQCzzQFrO1X2TEZOfWsHi3J6B6uVdU7zH9RRbKbZecxtBft0QT9bTR2lUKPgbbCgiiD7AXw6AfRyrm/pSWPA06EfLm83kBFrf/BW4ORF1M3Vr+1R8+APDcgH1nou0xV0QeTWWMIJqKNuyNS6zDMdafAm6cf786mTwwlosegI6J5aGZewirDNa+BbIqudFzSvu7rU4SF+Ls2MlqadR3p21qhXAoN7n8EySibBQGPAnMu3wC4sun0blyUVxgKe3AotR+MkdWj2wra6kcU71/YOWHdWRbcf2YUlLWwKz9xHoZAURp8fTsOZZ1czDvbp0xxUyG8uvSVw9D/df/lBUeACZ648Z9TIqPhDGqltD1aOWEqHNqzhSHwOTuYTtwmbTJHYr8LH0Cgr9+IhqnR2RZsZfWCRB4QZIk591IRa31RRH5ES5BVTzJCNN14qipaHadCeIAMsJIcHo8IZbMe/AnNkVLonijs4r2U= mano1@bastion
+---
+apiVersion: hive.openshift.io/v1
+kind: ClusterDeployment
+metadata:
+  name: mgmt1
+  namespace: hub
+spec:
+  baseDomain: npss.bos2.lab
+  installed: true
+  clusterMetadata:
+      adminKubeconfigSecretRef:
+        name: some-other-cluster-admin-kubeconfig
+      clusterID: ""
+      infraID: ""
+  clusterInstallRef:
+    group: extensions.hive.openshift.io
+    kind: AgentClusterInstall
+    name: mgmt1
+    version: v1beta1
+  clusterName: local-cluster
+  platform:
+    agentBareMetal: 
+      agentSelector:
+        matchExpressions:
+          - key: addworker
+            operator: exist
+      # baremetal: 
+      #       hosts:
+      #         - name: mgmt1-w1
+      #           role: worker
+      #           bootMACAddress: 30:3E:A7:03:0F:10
+  pullSecretRef:
+    name: pull-secret
+EOF
+```
+
+## Step7; Download and copy the iso: 
+
+```
+oc get infraenvs.agent-install.openshift.io -n hub some-other-infraenv -ojson | jq ".status.isoDownloadURL" --raw-output | xargs curl -k -o ./some-other.iso
+cp some-other.iso /opt/webcache/data/some-other.iso 
+```
+
+## Step8: Monitor the Installation: 
+
+Use the following while loop to monitor: 
+
+```
+while true; do oc get agents -A; oc get nodes; sleep 10; echo -n "############"; echo -n $(date); echo "###########"; done
+```
+
+Output after around 25 minutes:
+
+```
+############Mon Mar 18 06:38:09 PM EDT 2024###########
+NAMESPACE   NAME                                   CLUSTER     APPROVED   ROLE     STAGE
+cwl-site1   bd345d3c-2127-dc09-2fa6-73b59631d10f   cwl-site1   true       master   Done
+cwl-site1   c54131d6-f47c-6653-83ca-abd717c10eaf   cwl-site1   true       master   Done
+cwl-site1   ec0f64f6-a6a5-0b08-bec0-7c08066ceb69   cwl-site1   true       master   Done
+hpe1lb      37e28b72-6833-cc69-f2e9-8e993c754b77   hpe1lb      true       master   Done
+hpe2mb      0940d77e-6229-c491-7285-9f81d8ad5d0c   hpe2mb      true       master   Done
+NAME                               STATUS   ROLES                         AGE   VERSION
+mgmt1-m1                           Ready    control-plane,master,worker   49d   v1.25.12+26bab08
+mgmt1-m2                           Ready    control-plane,master,worker   49d   v1.25.12+26bab08
+mgmt1-m3                           Ready    control-plane,master,worker   49d   v1.25.12+26bab08
+openshift-worker-1.npss.bos2.lab   Ready    worker                        13s   v1.25.12+26bab08
+```
+
+Note that in this process, machineset count doesn't change (and machine CR is not created)
+```
+oc get machinesets.machine.openshift.io -A
+NAMESPACE               NAME                   DESIRED   CURRENT   READY   AVAILABLE   AGE
+openshift-machine-api   mgmt1-pqdng-worker-0   0         0                             50d
+```
+
+Useful URL for this process: https://docs.openshift.com/container-platform/4.14/nodes/nodes/nodes-sno-worker-nodes.html#sno-adding-worker-nodes-to-single-node-clusters-manually_add-workers
+
+Other useful URLs: 
+** https://www.redhat.com/en/blog/how-to-add-a-worker-to-an-imported-ocp-cluster-using-mce 
+** https://docs.openshift.com/container-platform/4.14/post_installation_configuration/cluster-tasks.html#adding-worker-nodes-to-clusters-managed-by-the-multicluster-engine-for-kubernetes
+** https://docs.openshift.com/container-platform/4.14/nodes/nodes/nodes-sno-worker-nodes.html#sno-adding-worker-nodes-to-single-node-clusters-manually_add-workers
+

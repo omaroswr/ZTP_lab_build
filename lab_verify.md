@@ -101,7 +101,7 @@ oc get csv -n open-cluster-management
 ```
  oc -n openshift-gitops get argocd openshift-gitops -o jsonpath='{.spec.repo.initContainers[0].image}{"\n"}'
 ```
-> infra.5g-deployment.lab:8443/openshift4/ztp-site-generate-rhel8:v4.14.0-71
+> infra.5g-deployment.lab:8443/openshift4/ztp-site-generate-rhel8:v4.15.0-32
 
 
 ### Verify AgentServiceConfig: 
@@ -113,8 +113,8 @@ oc get agentserviceconfig agent -o jsonpath={.spec.osImages} | jq
 > [<br>
 > &nbsp;&nbsp;{<br>
 > &nbsp;&nbsp;&nbsp;&nbsp;"cpuArchitecture":&nbsp;"x86_64",<br>
-> &nbsp;&nbsp;&nbsp;&nbsp;"openshiftVersion":&nbsp;"4.14",<br>
-> &nbsp;&nbsp;&nbsp;&nbsp;"rootFSUrl":&nbsp;"http://infra.5g-deployment.lab:8080/rhcos-4.14.0-x86_64-live-rootfs.x86_64.img",<br>
-> &nbsp;&nbsp;&nbsp;&nbsp;"url":&nbsp;"http://infra.5g-deployment.lab:8080/rhcos-4.14.0-x86_64-live.x86_64.iso",<br>
-> &nbsp;&nbsp;&nbsp;&nbsp;"version":&nbsp;"414.92.202310210434-0"<br>
+> &nbsp;&nbsp;&nbsp;&nbsp;"openshiftVersion":&nbsp;"4.15",<br>
+> &nbsp;&nbsp;&nbsp;&nbsp;"rootFSUrl":&nbsp;"http://infra.5g-deployment.lab:8080/rhcos-4.15.0-x86_64-live-rootfs.x86_64.img",<br>
+> &nbsp;&nbsp;&nbsp;&nbsp;"url":&nbsp;"http://infra.5g-deployment.lab:8080/rhcos-4.15.0-x86_64-live.x86_64.iso",<br>
+> &nbsp;&nbsp;&nbsp;&nbsp;"version":&nbsp;"415.92.202402201450-0"<br>
 > &nbsp;&nbsp;}<br>

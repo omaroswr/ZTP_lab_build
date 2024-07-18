@@ -1,6 +1,6 @@
 # Image Upgrade using TALM:
 
-Start by creating a working directly for the upgrade. Lets call this directory `fleet`
+Start by creating a working directory for the upgrade. Lets call this directory `fleet`
 
 ```
 mkdir ~/5g-deployment-lab/ztp-repository/policies/fleet
@@ -8,7 +8,7 @@ mkdir ~/5g-deployment-lab/ztp-repository/policies/fleet
 
 ## Find image pointers: 
 
-The lab image registry has already been populated with 14.4.1 OpenShift image. You can verify this by looking up the repository: 
+The lab image registry has already been populated with 4.15.3 OpenShift image. You can verify this by looking up the repository: 
 ```
 podman exec -it registry ls -al /registry/docker/registry/v2/repositories/openshift/release-images/_manifests/tags/
 ```
@@ -16,22 +16,22 @@ podman exec -it registry ls -al /registry/docker/registry/v2/repositories/opensh
 > total&nbsp;16<br>
 > drwxr-xr-x&nbsp;&nbsp;&nbsp;&nbsp;4&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4096&nbsp;Feb&nbsp;28&nbsp;16:05&nbsp;.<br>
 > drwxr-xr-x&nbsp;&nbsp;&nbsp;&nbsp;4&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4096&nbsp;Feb&nbsp;28&nbsp;16:01&nbsp;..<br>
-> drwxr-xr-x&nbsp;&nbsp;&nbsp;&nbsp;4&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4096&nbsp;Feb&nbsp;28&nbsp;16:05&nbsp;4.14.0-x86_64<br>
-> drwxr-xr-x&nbsp;&nbsp;&nbsp;&nbsp;4&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4096&nbsp;Feb&nbsp;28&nbsp;16:01&nbsp;**4.14.1-x86_64**<br>
+> drwxr-xr-x&nbsp;&nbsp;&nbsp;&nbsp;4&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4096&nbsp;Feb&nbsp;28&nbsp;16:05&nbsp;4.15.0-x86_64<br>
+> drwxr-xr-x&nbsp;&nbsp;&nbsp;&nbsp;4&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4096&nbsp;Feb&nbsp;28&nbsp;16:01&nbsp;**4.15.3-x86_64**<br>
 
 You can now optain the sha256 link to this as shown here: 
 ```
-podman exec -it registry cat  /registry/docker/registry/v2/repositories/openshift/release-images/_manifests/tags/4.14.1-x86_64/current/link
+podman exec -it registry cat  /registry/docker/registry/v2/repositories/openshift/release-images/_manifests/tags/4.15.3-x86_64/current/link
 ```
 
-> sha256:05ba8e63f8a76e568afe87f182334504a01d47342b6ad5b4c3ff83a2463018bd
+> sha256:8e8c6c2645553e6df8eb7985d8cb322f333a4152453e2aa85fff24ac5e0755b0
 
 ## Define PGT for upgrade: 
 
 Using this image pointer, define the image upgrade PGT manifest as shown here: 
 
 ```
-cat << EOF > ~/5g-deployment-lab/ztp-repository/policies/fleet/zone-europe-upgrade-414-1.yaml
+cat << EOF > ~/5g-deployment-lab/ztp-repository/policies/fleet/zone-europe-upgrade-415-3.yaml
 ---
 apiVersion: ran.openshift.io/v1
 kind: PolicyGenTemplate
@@ -46,23 +46,23 @@ spec:
   remediationAction: inform
   sourceFiles:
     - fileName: ClusterVersion.yaml
-      policyName: "version-414-1"
+      policyName: "version-415-3"
       metadata:
         name: version
       spec:
-        channel: "stable-4.14"
+        channel: "stable-4.15"
         desiredUpdate:
           force: false
-          version: "4.14.1"
-          image: "infra.5g-deployment.lab:8443/openshift/release-images@sha256:05ba8e63f8a76e568afe87f182334504a01d47342b6ad5b4c3ff83a2463018bd"
+          version: "4.15.3"
+          image: "infra.5g-deployment.lab:8443/openshift/release-images@sha256:8e8c6c2645553e6df8eb7985d8cb322f333a4152453e2aa85fff24ac5e0755b0"
       status:
         history:
-          - version: "4.14.1"
+          - version: "4.15.3"
             state: "Completed"
 EOF
 ```
 
-This manifest using a pre-existing soure-cr that is defined [here](https://github.com/openshift-kni/cnf-features-deploy/blob/master/ztp/source-crs/ClusterVersion.yaml)
+This manifest uses a pre-existing soure-cr that is defined [here](https://github.com/openshift-kni/cnf-features-deploy/blob/master/ztp/source-crs/ClusterVersion.yaml)
 
 ## Apply the Upgrade PGT: 
 
@@ -73,7 +73,7 @@ cat << EOF > ~/5g-deployment-lab/ztp-repository/policies/fleet/kustomization.yam
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 generators:
-- zone-europe-upgrade-414-1.yaml
+- zone-europe-upgrade-415-3.yaml
 EOF
 ```
 
@@ -107,7 +107,7 @@ The PGT had:
 > &nbsp;&nbsp;&nbsp;&nbsp;du-zone:&nbsp;"europe"<br>
 > &nbsp;&nbsp;&nbsp;&nbsp;logicalGroup:&nbsp;"active"<br>
 
-Therefore the managed cluster(s) that have either of these labels will be upgraed. Lets take a look at the managed clusters: 
+Therefore the managed cluster(s) that have either of these labels will be upgraded. Lets take a look at the managed clusters: 
 ```
 oc get managedclusters -l du-zone=europe
 ```
@@ -132,15 +132,15 @@ oc get policy -A
 > NAMESPACE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;NAME&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;REMEDIATION&nbsp;ACTION&nbsp;&nbsp;&nbsp;COMPLIANCE&nbsp;STATE&nbsp;&nbsp;&nbsp;AGE<br>   
 > sno2&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ztp-policies.common-config-policies&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;inform&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Compliant&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;8h<br>
 > sno2&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ztp-policies.common-subscription-policies&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;inform&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Compliant&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;8h<br>
-> **sno2&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ztp-policies.europe-snos-upgrade-version-414-1&nbsp;&nbsp;&nbsp;inform&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;NonCompliant&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;116s**<br>
+> **sno2&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ztp-policies.europe-snos-upgrade-version-415-3&nbsp;&nbsp;&nbsp;inform&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;NonCompliant&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;116s**<br>
 > ztp-policies&nbsp;&nbsp;&nbsp;common-config-policies&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;inform&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Compliant&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;8h<br>
 > ztp-policies&nbsp;&nbsp;&nbsp;common-subscription-policies&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;inform&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Compliant&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;8h<br>
-> ztp-policies&nbsp;&nbsp;&nbsp;europe-snos-upgrade-version-414-1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;inform&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;NonCompliant&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;116s<br>
+> ztp-policies&nbsp;&nbsp;&nbsp;europe-snos-upgrade-version-415-3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;inform&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;NonCompliant&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;116s<br>
 
 Lets check the reason for non-compliance of this policy: 
 
 ```
-oc get policy -n sno2 ztp-policies.europe-snos-upgrade-version-414-1 -o jsonpath={.status.details} | jq
+oc get policy -n sno2 ztp-policies.europe-snos-upgrade-version-415-3 -o jsonpath={.status.details} | jq
 ```
 
 > [<br>
@@ -148,25 +148,25 @@ oc get policy -n sno2 ztp-policies.europe-snos-upgrade-version-414-1 -o jsonpath
 > &nbsp;&nbsp;&nbsp;&nbsp;"compliant":&nbsp;"NonCompliant",<br>
 > &nbsp;&nbsp;&nbsp;&nbsp;"history":&nbsp;[<br>
 > &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{<br>
-> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"eventName":&nbsp;"ztp-policies.europe-snos-upgrade-version-414-1.17b7dbafebcf958b",<br>  
+> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"eventName":&nbsp;"ztp-policies.europe-snos-upgrade-version-415-3.17b7dbafebcf958b",<br>  
 > &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"lastTimestamp":&nbsp;"2024-02-27T23:22:12Z",<br>
 > &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;**"message":&nbsp;"NonCompliant;&nbsp;violation&nbsp;-&nbsp;clusterversions&nbsp;[version]&nbsp;found&nbsp;but&nbsp;not&nbsp;as&nbsp;specified"**<br>
 > &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}<br>
 > &nbsp;&nbsp;&nbsp;&nbsp;],<br>
 > &nbsp;&nbsp;&nbsp;&nbsp;"templateMeta":&nbsp;{<br>
 > &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"creationTimestamp":&nbsp;null,<br>
-> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"name":&nbsp;"europe-snos-upgrade-version-414-1-config"<br>
+> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"name":&nbsp;"europe-snos-upgrade-version-415-3-config"<br>
 > &nbsp;&nbsp;&nbsp;&nbsp;}<br>
 > &nbsp;&nbsp;}<br>
 > ]<br>
 
-This is because the version found on the cluster is not matching 14.4.1. Thats expected becaue the cluster's current version is not 14.4.1. To find sno2's current version, use: 
+This is because the version found on the cluster is not matching 4.15.3. Thats expected because the cluster's current version is not 4.15.3. To find sno2's current version, use: 
 
 ```
 oc get clusterversion --kubeconfig /root/sno2-kubeconfig 
 ```
 p;&nbsp;&nbsp;STATUS<br>
-> version&nbsp;&nbsp;&nbsp;4.14.0&nbsp;&nbsp;&nbsp;&nbsp;True&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;False&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3h11m&nbsp;&nbsp;&nbsp;Cluster&nbsp;version&nbsp;is&nbsp;**4.14.0**<br>
+> version&nbsp;&nbsp;&nbsp;4.15.0&nbsp;&nbsp;&nbsp;&nbsp;True&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;False&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3h11m&nbsp;&nbsp;&nbsp;Cluster&nbsp;version&nbsp;is&nbsp;**4.15.0**<br>
 
 The non-compliance of the policy can also be viewed 
 
@@ -219,13 +219,13 @@ oc get policy -A
 ```
 
 > NAMESPACE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;NAME&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;REMEDIATION&nbsp;ACTION&nbsp;&nbsp;&nbsp;COMPLIANCE&nbsp;STATE&nbsp;&nbsp;&nbsp;AGE<br>   
-> sno1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ztp-policies.europe-snos-upgrade-version-414-1&nbsp;&nbsp;&nbsp;inform&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2m1s<br>
+> sno1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ztp-policies.europe-snos-upgrade-version-415-3&nbsp;&nbsp;&nbsp;inform&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2m1s<br>
 > sno2&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ztp-policies.common-config-policies&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;inform&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Compliant&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;12h<br>
 > sno2&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ztp-policies.common-subscription-policies&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;inform&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Compliant&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;12h<br>
-> sno2&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ztp-policies.europe-snos-upgrade-version-414-1&nbsp;&nbsp;&nbsp;inform&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;NonCompliant&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3h43m<br>
+> sno2&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ztp-policies.europe-snos-upgrade-version-415-3&nbsp;&nbsp;&nbsp;inform&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;NonCompliant&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3h43m<br>
 > ztp-policies&nbsp;&nbsp;&nbsp;common-config-policies&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;inform&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Compliant&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;12h<br>
 > ztp-policies&nbsp;&nbsp;&nbsp;common-subscription-policies&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;inform&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Compliant&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;12h<br>
-> ztp-policies&nbsp;&nbsp;&nbsp;europe-snos-upgrade-version-414-1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;inform&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;NonCompliant&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3h43m<br>
+> ztp-policies&nbsp;&nbsp;&nbsp;europe-snos-upgrade-version-415-3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;inform&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;NonCompliant&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3h43m<br>
 
 The violations (due to non-compliance) can also be viewed on the GUI, as the count has now gone up from 1 to 2:
 
@@ -255,7 +255,7 @@ spec:
   - sno2
   enable: false
   managedPolicies:
-  - europe-snos-upgrade-version-414-1
+  - europe-snos-upgrade-version-415-3
   remediationStrategy:
     maxConcurrency: 2
     timeout: 240
@@ -277,7 +277,7 @@ oc get cgu -A
 
 ## Defining Pre-Caching Configuration:
 
-The pre-caching configuraiton defines what gets pre-cached to make the upgrade more efficient and compliant to the maintenance window. 
+The pre-caching configuration defines what gets pre-cached to make the upgrade more efficient and compliant to the maintenance window. 
 We can configure that using the follwing: 
 
 ```
@@ -312,7 +312,7 @@ spec:
 EOF
 ```
 
-you will see that pre-cachaing starts to take place: 
+After some time, you will see that pre-cachaing starts to take place: 
 
 
 oc get cgu -A
@@ -376,7 +376,7 @@ Just for information, we can check the cached images on the target cluster using
 oc debug node/sno2.5g-deployment.lab --kubeconfig ~/sno2-kubeconfig 
 ```
 >&nbsp;Starting&nbsp;pod/sno25g-deploymentlab-debug-jbx4h&nbsp;...<br>
->&nbsp;To&nbsp;use&nbsp;host&nbsp;binaries,&nbsp;run&nbsp;`chroot&nbsp;/host`<br>
+>&nbsp;To&nbsp;use&nbsp;host&nbsp;binaries,&nbsp;run&nbsp;chroot&nbsp;/host<br>
 >&nbsp;Pod&nbsp;IP:&nbsp;192.168.125.40<br>
 >&nbsp;If&nbsp;you&nbsp;don't&nbsp;see&nbsp;a&nbsp;command&nbsp;prompt,&nbsp;try&nbsp;pressing&nbsp;enter.<br>
 >&nbsp;sh-4.4#&nbsp;<br>
@@ -386,7 +386,7 @@ chroot /host
 podman images | grep 5g
 ```
 
->&nbsp;infra.5g-deployment.lab:8443/redhat/redhat-operator-index&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;v4.14-1700503430&nbsp;&nbsp;409db6e5b49f&nbsp;&nbsp;3&nbsp;months&nbsp;ago&nbsp;&nbsp;1.78&nbsp;GB<br>
+>&nbsp;infra.5g-deployment.lab:8443/redhat/redhat-operator-index&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;v4.15-1700503430&nbsp;&nbsp;409db6e5b49f&nbsp;&nbsp;3&nbsp;months&nbsp;ago&nbsp;&nbsp;1.78&nbsp;GB<br>
 >&nbsp;infra.5g-deployment.lab:8443/openshift/release-images&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<none>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;d3e740b44b78&nbsp;&nbsp;4&nbsp;months&nbsp;ago&nbsp;&nbsp;519&nbsp;MB<br>
 >&nbsp;infra.5g-deployment.lab:8443/openshift/release-images&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<none>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0c7cd234c0ea&nbsp;&nbsp;4&nbsp;months&nbsp;ago&nbsp;&nbsp;519&nbsp;MB<br>
 
@@ -414,13 +414,19 @@ oc --kubeconfig ~/sno2-kubeconfig get job -n openshift-talo-backup
 
 Find out the pod that this job created, using: 
 
+```
+ oc --kubeconfig ~/sno2-kubeconfig get pods -n openshift-talo-backup
+ ```
+
 > NAME&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;READY&nbsp;&nbsp;&nbsp;STATUS&nbsp;&nbsp;&nbsp;&nbsp;RESTARTS&nbsp;&nbsp;&nbsp;AGE<br>
 > backup-agent-fz5dg&nbsp;&nbsp;&nbsp;1/1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Running&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;21s<br>
 
 
+The logs of this pod will give an idea about the status of the backup process:
+
 ```
- oc --kubeconfig ~/sno2-kubeconfig get pods -n openshift-talo-backup
- ```
+oc --kubeconfig ~/sno2-kubeconfig logs -n openshift-talo-backup backup-agent-fz5dg
+```
 
 > INFO[0000]&nbsp;Successfully&nbsp;mounted&nbsp;/host/dev/shm&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
 > INFO[0000]&nbsp;Successfully&nbsp;remounted&nbsp;/host/sysroot&nbsp;with&nbsp;r/w&nbsp;permission&nbsp;<br>
@@ -438,32 +444,30 @@ Find out the pod that this job created, using:
 > INFO[0004]&nbsp;#####&nbsp;Thu&nbsp;Feb&nbsp;29&nbsp;02:24:57&nbsp;UTC&nbsp;2024:&nbsp;Wiping&nbsp;previous&nbsp;deployments&nbsp;and&nbsp;pinning&nbsp;active&nbsp;<br>
 >
 
-
-The logs of this pod will give an idea about the status of the backup process:
-
-```
-oc --kubeconfig ~/sno2-kubeconfig logs -n openshift-talo-backup backup-agent-fz5dg
-```
-
-> NAME&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AGE&nbsp;&nbsp;&nbsp;STATE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;DETAILS<br>
-> update-europe-snos&nbsp;&nbsp;&nbsp;26m&nbsp;&nbsp;&nbsp;InProgress&nbsp;&nbsp;&nbsp;Remediating&nbsp;non-compliant&nbsp;policies<br>
-
-
 Once backup is completed, the logs will indicate that, and also CGU will move to the status `BackupCompleted`. Soon after CGU will start to show the status `InProgress`
 
 ```
 oc get cgu -n ztp-policies
 ```
 
+> NAME&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AGE&nbsp;&nbsp;&nbsp;STATE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;DETAILS<br>
+> update-europe-snos&nbsp;&nbsp;&nbsp;26m&nbsp;&nbsp;&nbsp;InProgress&nbsp;&nbsp;&nbsp;Remediating&nbsp;non-compliant&nbsp;policies<br>
+
+Eventually the policies will reach compliant state once the nodes have been upgraded:
+
+```
+oc get policies -A
+```
+
 > -----<br>
 > NAMESPACE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;NAME&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;REMEDIATION&nbsp;ACTION&nbsp;&nbsp;&nbsp;COMPLIANCE&nbsp;STATE&nbsp;&nbsp;&nbsp;AGE<br>
-> sno1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ztp-policies.europe-snos-upgrade-version-414-1&nbsp;&nbsp;&nbsp;inform&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Compliant&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;118m<br>
+> sno1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ztp-policies.europe-snos-upgrade-version-415-3&nbsp;&nbsp;&nbsp;inform&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Compliant&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;118m<br>
 > sno2&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ztp-policies.common-config-policies&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;inform&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Compliant&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;6h12m<br>
 > sno2&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ztp-policies.common-subscription-policies&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;inform&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Compliant&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;6h12m<br>
-> sno2&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ztp-policies.europe-snos-upgrade-version-414-1&nbsp;&nbsp;&nbsp;inform&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Compliant&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;141m<br>
+> sno2&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ztp-policies.europe-snos-upgrade-version-415-3&nbsp;&nbsp;&nbsp;inform&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Compliant&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;141m<br>
 > ztp-policies&nbsp;&nbsp;&nbsp;common-config-policies&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;inform&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Compliant&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;6h12m<br>
 > ztp-policies&nbsp;&nbsp;&nbsp;common-subscription-policies&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;inform&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Compliant&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;6h12m<br>
-> ztp-policies&nbsp;&nbsp;&nbsp;europe-snos-upgrade-version-414-1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;inform&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Compliant&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;141m<br>
+> ztp-policies&nbsp;&nbsp;&nbsp;europe-snos-upgrade-version-415-3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;inform&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Compliant&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;141m<br>
 > =====================<br>
 
 
@@ -476,7 +480,7 @@ oc get clusterversion --kubeconfig ~/sno2-kubeconfig
 ```
 
 > NAME&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;VERSION&nbsp;&nbsp;&nbsp;AVAILABLE&nbsp;&nbsp;&nbsp;PROGRESSING&nbsp;&nbsp;&nbsp;SINCE&nbsp;&nbsp;&nbsp;STATUS<br>
-> version&nbsp;&nbsp;&nbsp;4.14.1&nbsp;&nbsp;&nbsp;&nbsp;True&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;False&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;11m&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Cluster&nbsp;version&nbsp;is&nbsp;**4.14.1**<br>
+> version&nbsp;&nbsp;&nbsp;4.15.3&nbsp;&nbsp;&nbsp;&nbsp;True&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;False&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;11m&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Cluster&nbsp;version&nbsp;is&nbsp;**4.15.3**<br>
 
 
 
@@ -487,4 +491,4 @@ oc get clusterversion --kubeconfig ~/sno1-kubeconfig
 ```
 
 > NAME&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;VERSION&nbsp;&nbsp;&nbsp;AVAILABLE&nbsp;&nbsp;&nbsp;PROGRESSING&nbsp;&nbsp;&nbsp;SINCE&nbsp;&nbsp;&nbsp;STATUS<br>
-> version&nbsp;&nbsp;&nbsp;4.14.1&nbsp;&nbsp;&nbsp;&nbsp;True&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;False&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;12m&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Cluster&nbsp;version&nbsp;is&nbsp;**4.14.1**<br>
+> version&nbsp;&nbsp;&nbsp;4.15.3&nbsp;&nbsp;&nbsp;&nbsp;True&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;False&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;12m&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Cluster&nbsp;version&nbsp;is&nbsp;**4.15.3**<br>

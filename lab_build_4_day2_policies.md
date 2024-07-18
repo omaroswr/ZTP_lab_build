@@ -1,6 +1,6 @@
 ## Create new manifests to be used by day2 policy: 
 
-While exploring day-2 policies, lets make use of the ability to create custom manifests as well. The following will be creatged and placed in source-crsdirectory. 
+While exploring day-2 policies, lets make use of the ability to create custom manifests as well. The following will be created and placed in source-crs directory. 
 
 
 ```
@@ -20,7 +20,7 @@ spec: {}
 EOF
 ```
 
-Note that the manifests are using two variables, which will need to be specified when using these CRs in the PGT manifests
+Note that the manifest is using a variable, which will need to be specified when using this CR in the PGT manifests.
 
 ### Creating PGT to be applied: 
 
@@ -70,7 +70,7 @@ oc get policy -A | grep label
 
 ### Create CGU:
 
-Before we apply the policy by create CGU, lets first see the state of node's labels for SNO2: 
+Before we apply the policy by creating a CGU, lets first see the state of node's labels for SNO2: 
 
 ```
 oc get nodes --show-labels --kubeconfig ~/sno2-kubeconfig 

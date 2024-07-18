@@ -281,13 +281,13 @@ You can use the following script to continuously monitor the key CRs and their s
 while true; do echo "################################"; echo "# `date` #"; echo "################################"; echo "---------------- BMH ----------------"; oc get bmh -A; echo "---------------- AgentClusterInstall ----------------"; oc get agentclusterinstall -A; echo "---------------- Clusters ----------------"; oc get managedclusters sno2 --show-labels; echo "---------------- Policies ----------------"; oc get policy -A; echo "---------------- CGU ----------------"; oc get cgu -A; sleep 15; done
 ```
 
-Just as a reference, the following figure shows the transiutions that the CRs captured in the above output go through: 
+Just as a reference, the following figure shows the transitions that the CRs captured in the above output go through: 
 
 ![image1](images/argo_5.png)
 
 ## Verify the status of applications using GUI: 
 
-You can conenct to the OpenShift GitOps GUI using either the credentials (stpes to find out the url and credentials can be found [here](https://gitlab.consulting.redhat.com/shassan/bootcamp/-/blob/main/gitops.md)), or you can use the option to authenticate using OpenShift Console by using the applications menu as shown here: 
+You can conenct to the OpenShift GitOps GUI using either the credentials (steps to find out the url and credentials can be found [here](https://gitlab.consulting.redhat.com/shassan/bootcamp/-/blob/main/gitops.md)), or you can use the option to authenticate using OpenShift Console by using the applications menu as shown here: 
 
 ![image1](images/argo_1.png)
 
@@ -295,7 +295,7 @@ If using the OpenShift option, you will be asked to allow the application (ArgoC
 
 ![image1](images/argo_2.png)
 
-Click on the Cluster and Policies aookucations to see the translated CRs by the ZTP Plugin. If you dont see these in a Healthy and Synced state, you might need to click on the `Refresh` button on the GUI. If that doesn't give the Healthy status, then you will need some troubleshooting to be done.  Normally you will see the followings: 
+Click on the Cluster and Policies applications to see the translated CRs by the ZTP Plugin. If you dont see these in a Healthy and Synced state, you might need to click on the `Refresh` button on the GUI. If that doesn't give the Healthy status, then you will need some troubleshooting to be done.  Normally you will see the followings: 
 
 ![image1](images/argo_3.png)
 
@@ -320,7 +320,7 @@ oc get agentclusterinstall -n sno2
 > NAME&nbsp;&nbsp;&nbsp;CLUSTER&nbsp;&nbsp;&nbsp;STATE<br>
 > sno2&nbsp;&nbsp;&nbsp;sno2&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;installing<br>
 
-You should be looking for the folloiwng output that shows `sno2` has JOINED the managemwent clust is is AVAILABLE: 
+You should be looking for the following output that shows `sno2` has JOINED the management cluster and is AVAILABLE: 
 ```
 oc get managedcluster sno2
 ```
@@ -355,7 +355,7 @@ Wait for policies to be fully enforced. At that point, you will see:
 
 The completion of OpenShift install on managed cluster can be viewed on the ACM GUI, as shown here: 
 
-![image1](images/argo.6.png)
+![image1](images/argo_6.png)
 
 Similiarly, the policy compliance status can be seen on the same GUI under the `Governence` menu option: 
 

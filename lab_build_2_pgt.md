@@ -40,6 +40,19 @@ spec:
         channel: stable-4.15
         source: redhat-operator-index
       policyName: subscription-policies
+    - fileName: LVMOperatorStatus.yaml
+      policyName: subscription-policies
+    - fileName: SriovSubscriptionNS.yaml
+      policyName: subscription-policies
+    - fileName: SriovSubscriptionOperGroup.yaml
+      policyName: subscription-policies
+    - fileName: SriovSubscription.yaml
+      spec:
+        channel: stable
+        source: redhat-operator-index
+      policyName: subscription-policies
+    - fileName: SriovOperatorStatus.yaml
+      policyName: subscription-policies
 EOF
 ```
 
@@ -49,6 +62,23 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 generators:
 - common-415.yaml
+EOF
+```
+
+### Custom Source-CR example
+
+We will create a custom source-CR that will disable the default catalog sources on the managed cluster. This CR is already being referenced in the PGT that was created above.
+
+```
+cat <<EOF > ~/5g-deployment-lab/ztp-repository/policies/configuration-version-2024-03-04/source-crs/OperatorHub.yaml
+apiVersion: config.openshift.io/v1
+kind: OperatorHub
+metadata:
+    name: cluster
+    annotations:
+        ran.openshift.io/ztp-deploy-wave: "1"
+spec:
+    disableAllDefaultSources: true
 EOF
 ```
 
