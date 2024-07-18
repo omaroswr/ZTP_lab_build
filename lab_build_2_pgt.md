@@ -3,7 +3,7 @@
 ### Common Policy:
 
 ```
-cat <<EOF > ~/5g-deployment-lab/ztp-repository/policies/configuration-version-2024-03-04/common-414.yaml
+cat <<EOF > ~/5g-deployment-lab/ztp-repository/policies/configuration-version-2024-03-04/common-415.yaml
 ---
 apiVersion: ran.openshift.io/v1
 kind: PolicyGenTemplate
@@ -12,7 +12,7 @@ metadata:
   namespace: "ztp-policies"
 spec:
   bindingRules:
-    common: "ocp414"
+    common: "ocp415"
     logicalGroup: "active"
   mcp: master
   remediationAction: inform
@@ -48,7 +48,7 @@ cat <<EOF > ~/5g-deployment-lab/ztp-repository/policies/configuration-version-20
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 generators:
-- common-414.yaml
+- common-415.yaml
 EOF
 ```
 
